@@ -4520,11 +4520,11 @@
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "/Users/harinduadhikari/Downloads/csvitemadder/backend/CsvItemAdder.API/CsvItemAdder.API.csproj",
+      "projectUniqueName": "/Users/harinduadhikari/Downloads/csvitemadd/backend/CsvItemAdder.API/CsvItemAdder.API.csproj",
       "projectName": "CsvItemAdder.API",
-      "projectPath": "/Users/harinduadhikari/Downloads/csvitemadder/backend/CsvItemAdder.API/CsvItemAdder.API.csproj",
+      "projectPath": "/Users/harinduadhikari/Downloads/csvitemadd/backend/CsvItemAdder.API/CsvItemAdder.API.csproj",
       "packagesPath": "/Users/harinduadhikari/.nuget/packages/",
-      "outputPath": "/Users/harinduadhikari/Downloads/csvitemadder/backend/CsvItemAdder.API/obj/",
+      "outputPath": "/Users/harinduadhikari/Downloads/csvitemadd/backend/CsvItemAdder.API/obj/",
       "projectStyle": "PackageReference",
       "configFilePaths": [
         "/Users/harinduadhikari/.nuget/NuGet/NuGet.Config"

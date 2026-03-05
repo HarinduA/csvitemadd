@@ -6,10 +6,6 @@ namespace CsvItemAdder.API.Models;
 [Table("Items")]
 public class Item
 {
-    [Key]
-    [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
-    public int Id { get; set; }
-
     [Required]
     [MaxLength(50)]
     [Column("copcode")]

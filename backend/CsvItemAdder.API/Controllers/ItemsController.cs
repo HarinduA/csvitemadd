@@ -24,6 +24,7 @@ public class ItemsController : ControllerBase
 
     /// <summary>
     /// Upload a CSV file and bulk insert items into the database.
+    /// Skips rows where (loca_code + item_code) already exist (DB or within the CSV itself).
     /// </summary>
     [HttpPost("upload")]
     [RequestSizeLimit(50 * 1024 * 1024)] // 50 MB max
@@ -36,9 +37,10 @@ public class ItemsController : ControllerBase
         if (extension != ".csv")
             return BadRequest(new { message = "Only CSV files are accepted." });
 
-        var items = new List<Item>();
+        var parsedItems = new List<Item>();
         var errors = new List<string>();
 
+        // ── 1. Parse CSV ────────────────────────────────────────────────────
         try
         {
             var config = new CsvConfiguration(CultureInfo.InvariantCulture)
@@ -60,7 +62,7 @@ public class ItemsController : ControllerBase
 
             foreach (var record in records)
             {
-                items.Add(new Item
+                parsedItems.Add(new Item
                 {
                     Copcode = record.Copcode?.Trim() ?? string.Empty,
                     LocaCode = record.LocaCode?.Trim() ?? string.Empty,
@@ -76,18 +78,80 @@ public class ItemsController : ControllerBase
             return BadRequest(new { message = $"Error parsing CSV: {ex.Message}" });
         }
 
-        if (items.Count == 0)
+        if (parsedItems.Count == 0)
             return BadRequest(new { message = "No valid rows found in CSV." });
 
+        // ── 2. Deduplicate within the CSV (keep first occurrence) ───────────
+        var seenInCsv = new HashSet<(string, string)>();
+        var uniqueItems = new List<Item>();
+        var csvDuplicateCount = 0;
+
+        foreach (var item in parsedItems)
+        {
+            var key = (item.LocaCode, item.ItemCode);
+            if (!seenInCsv.Add(key))
+            {
+                errors.Add($"Duplicate in CSV – loca_code='{item.LocaCode}', item_code='{item.ItemCode}' (skipped).");
+                csvDuplicateCount++;
+            }
+            else
+            {
+                uniqueItems.Add(item);
+            }
+        }
+
+        // ── 3. Check against existing DB rows ───────────────────────────────
+        // Collect all (loca_code, item_code) pairs from the DB that match any incoming key
+        var incomingLocaCodes = uniqueItems.Select(i => i.LocaCode).Distinct().ToList();
+        var incomingItemCodes = uniqueItems.Select(i => i.ItemCode).Distinct().ToList();
+
+        var existingKeys = await _context.Items
+            .Where(x => incomingLocaCodes.Contains(x.LocaCode) && incomingItemCodes.Contains(x.ItemCode))
+            .Select(x => new { x.LocaCode, x.ItemCode })
+            .ToListAsync();
+
+        var existingSet = existingKeys
+            .Select(x => (x.LocaCode, x.ItemCode))
+            .ToHashSet();
+
+        var newItems = new List<Item>();
+        var dbDuplicateCount = 0;
+
+        foreach (var item in uniqueItems)
+        {
+            if (existingSet.Contains((item.LocaCode, item.ItemCode)))
+            {
+                errors.Add($"Already exists in DB – loca_code='{item.LocaCode}', item_code='{item.ItemCode}' (skipped).");
+                dbDuplicateCount++;
+            }
+            else
+            {
+                newItems.Add(item);
+            }
+        }
+
+        if (newItems.Count == 0)
+        {
+            return Ok(new
+            {
+                message = "No new items to import – all rows were duplicates.",
+                totalRows = parsedItems.Count,
+                savedRows = 0,
+                csvDuplicatesSkipped = csvDuplicateCount,
+                dbDuplicatesSkipped = dbDuplicateCount,
+                errors
+            });
+        }
+
+        // ── 4. Bulk insert new items in batches ─────────────────────────────
         try
         {
-            // Bulk insert in batches of 1000 for performance
             const int batchSize = 1000;
             int totalSaved = 0;
 
-            for (int i = 0; i < items.Count; i += batchSize)
+            for (int i = 0; i < newItems.Count; i += batchSize)
             {
-                var batch = items.Skip(i).Take(batchSize).ToList();
+                var batch = newItems.Skip(i).Take(batchSize).ToList();
                 await _context.Items.AddRangeAsync(batch);
                 await _context.SaveChangesAsync();
                 totalSaved += batch.Count;
@@ -96,9 +160,11 @@ public class ItemsController : ControllerBase
 
             return Ok(new
             {
-                message = $"Successfully imported {totalSaved} items.",
-                totalRows = items.Count,
+                message = $"Successfully imported {totalSaved} item(s).",
+                totalRows = parsedItems.Count,
                 savedRows = totalSaved,
+                csvDuplicatesSkipped = csvDuplicateCount,
+                dbDuplicatesSkipped = dbDuplicateCount,
                 errors
             });
         }
@@ -130,7 +196,8 @@ public class ItemsController : ControllerBase
 
         var total = await query.CountAsync();
         var items = await query
-            .OrderBy(x => x.Id)
+            .OrderBy(x => x.LocaCode)
+            .ThenBy(x => x.ItemCode)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
             .ToListAsync();

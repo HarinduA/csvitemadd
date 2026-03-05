@@ -16,7 +16,10 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<Item>(entity =>
         {
             entity.ToTable("Items");
-            entity.HasKey(e => e.Id);
+
+            // Composite Primary Key: LocaCode + ItemCode
+            entity.HasKey(e => new { e.LocaCode, e.ItemCode });
+
             entity.Property(e => e.Copcode).IsRequired().HasMaxLength(50);
             entity.Property(e => e.LocaCode).IsRequired().HasMaxLength(50);
             entity.Property(e => e.ItemCode).IsRequired().HasMaxLength(100);
