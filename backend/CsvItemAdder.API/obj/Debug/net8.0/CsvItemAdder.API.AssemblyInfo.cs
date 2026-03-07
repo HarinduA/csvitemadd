@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("CsvItemAdder.API")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+4a727b04a398d7c0d4dcaf9cf21323a3555a5f0c")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+af6545c8087ae6541d7284dafc875d5cbc36b5e0")]
 [assembly: System.Reflection.AssemblyProductAttribute("CsvItemAdder.API")]
 [assembly: System.Reflection.AssemblyTitleAttribute("CsvItemAdder.API")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
