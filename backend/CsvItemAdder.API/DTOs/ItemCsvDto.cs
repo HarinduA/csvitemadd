@@ -4,18 +4,21 @@ namespace CsvItemAdder.API.DTOs;
 
 public class ItemCsvDto
 {
-    [Name("copcode")]
-    public string Copcode { get; set; } = string.Empty;
+    [Name("compcode", "copcode", "comp code")]
+    public string Copcode { get; set; } = "DEFAULT";
 
-    [Name("loca_code")]
-    public string LocaCode { get; set; } = string.Empty;
+    [Name("loca_code", "location", "loca")]
+    public string LocaCode { get; set; } = "DEFAULT";
 
-    [Name("item_code")]
+    [Name("item code", "item_code", "itemcode")]
     public string ItemCode { get; set; } = string.Empty;
 
-    [Name("qty1")]
+    [Name("item description", "description", "item_description")]
+    public string? Description { get; set; }
+
+    [Name("bulk", "qty1")]
     public decimal Qty1 { get; set; }
 
-    [Name("qty2")]
+    [Name("loose", "qty2")]
     public decimal Qty2 { get; set; }
 }

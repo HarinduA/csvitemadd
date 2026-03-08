@@ -6,10 +6,6 @@ namespace CsvItemAdder.API.Models;
 [Table("Items")]
 public class Item
 {
-    [Key]
-    [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
-    public int Id { get; set; }
-
     [Required]
     [MaxLength(50)]
     [Column("copcode")]
@@ -25,9 +21,19 @@ public class Item
     [Column("item_code")]
     public string ItemCode { get; set; } = string.Empty;
 
+    [Column("description")]
+    [MaxLength(500)]
+    public string? Description { get; set; }
+
     [Column("qty1")]
     public decimal Qty1 { get; set; }
 
     [Column("qty2")]
     public decimal Qty2 { get; set; }
+
+    [Column("upload_id")]
+    public int? UploadId { get; set; }
+
+    [ForeignKey("UploadId")]
+    public UploadRecord? Upload { get; set; }
 }
