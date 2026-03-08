@@ -27,11 +27,11 @@ function StatusBadge({ type, children }) {
 
 // ── main component ─────────────────────────────────────────────────────────────
 export default function App() {
-    // upload state
+    // upload state (multi-file)
     const [dragging, setDragging] = useState(false)
-    const [file, setFile] = useState(null)
+    const [files, setFiles] = useState([]) // Changed from file -> files array
     const [uploading, setUploading] = useState(false)
-    const [result, setResult] = useState(null)   // { message, totalRows, savedRows, errors[] }
+    const [results, setResults] = useState([]) // Store multiple results
     const [uploadErr, setUploadErr] = useState(null)
     const fileRef = useRef()
 
@@ -95,29 +95,43 @@ export default function App() {
     }, [fetchItems, fetchHistory])
 
     // ── file pick helpers ────────────────────────────────────────────────────────
-    const pickFile = (f) => {
-        if (!f) return
-        if (!f.name.endsWith('.csv')) { setUploadErr('Only .csv files are accepted.'); return }
-        setFile(f); setResult(null); setUploadErr(null)
+    const pickFiles = (newFiles) => {
+        if (!newFiles || newFiles.length === 0) return
+        const validFiles = Array.from(newFiles).filter(f => f.name.endsWith('.csv'))
+        if (validFiles.length < newFiles.length) {
+            setUploadErr('Only .csv files are accepted.')
+        } else {
+            setUploadErr(null)
+        }
+        setFiles(prev => [...prev, ...validFiles])
+        setResults([])
+    }
+
+    const removeFile = (index) => {
+        setFiles(prev => prev.filter((_, i) => i !== index))
     }
 
     const onDrop = (e) => {
         e.preventDefault(); setDragging(false)
-        pickFile(e.dataTransfer.files[0])
+        pickFiles(e.dataTransfer.files)
     }
 
     // ── upload ───────────────────────────────────────────────────────────────────
     const upload = async () => {
-        if (!file) return
-        setUploading(true); setResult(null); setUploadErr(null)
+        if (files.length === 0) return
+        setUploading(true); setResults([]); setUploadErr(null)
+
         try {
-            const form = new FormData()
-            form.append('file', file)
-            const res = await fetch(`${API}/upload`, { method: 'POST', body: form })
-            const data = await res.json()
-            if (!res.ok) throw new Error(data.message || `HTTP ${res.status}`)
-            setResult(data)
-            setFile(null)
+            const allResults = []
+            for (const file of files) {
+                const form = new FormData()
+                form.append('file', file)
+                const res = await fetch(`${API}/upload`, { method: 'POST', body: form })
+                const data = await res.json()
+                allResults.push({ fileName: file.name, ...data, success: res.ok })
+            }
+            setResults(allResults)
+            setFiles([])
             fetchItems(1, search)
             fetchHistory()
         } catch (e) {
@@ -134,7 +148,7 @@ export default function App() {
         try {
             const res = await fetch(`${API}/clear`, { method: 'DELETE' })
             if (!res.ok) throw new Error(`HTTP ${res.status}`)
-            setItems([]); setTotal(0); setResult(null); setHistory([]); setSelectedUpload(null)
+            setItems([]); setTotal(0); setResults([]); setHistory([]); setSelectedUpload(null)
         } catch (e) {
             setTableErr(e.message)
         } finally {
@@ -181,11 +195,11 @@ export default function App() {
         card: {
             background: 'var(--bg-card)', border: '1px solid var(--border)',
             borderRadius: 'var(--radius)', padding: 28, marginBottom: 28,
-            boxShadow: '0 1px 8px rgba(0,0,0,0.07)',
+            boxShadow: '0 1px 8px rgba(0,0,0,0.07)', position: 'relative'
         },
         zone: (active) => ({
             border: `2px dashed ${active ? 'var(--accent)' : 'var(--border-light)'}`,
-            borderRadius: 'var(--radius)', padding: '48px 24px',
+            borderRadius: 'var(--radius)', padding: '32px 24px',
             textAlign: 'center', cursor: 'pointer',
             background: active ? 'var(--accent-glow)' : 'transparent',
             transition: 'all var(--transition)',
@@ -237,25 +251,38 @@ export default function App() {
             cursor: 'pointer', transition: 'all 0.2s', marginBottom: 10,
             display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         }),
+        fileTag: {
+            display: 'inline-flex', alignItems: 'center', gap: 8,
+            padding: '6px 12px', background: 'var(--bg-secondary)',
+            border: '1px solid var(--border)', borderRadius: 6, fontSize: 13,
+            color: 'var(--text-primary)', marginRight: 8, marginBottom: 8
+        }
     }
 
     return (
         <div style={css.shell}>
             {/* ── Header ── */}
             <header style={css.header}>
-                <div style={css.logo}>📦</div>
+                <div style={css.logo}></div>
                 <div>
                     <div style={{ fontWeight: 800, fontSize: 18, color: '#ffffff' }}>CSV Item Management</div>
                     <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.7)' }}>Advanced Inventory & Upload History</div>
                 </div>
-                {total > 0 && (
-                    <div style={{ marginLeft: 'auto' }}>
-                        <StatusBadge type="info">🗄 {total.toLocaleString()} rows total</StatusBadge>
-                    </div>
-                )}
             </header>
 
             <main style={css.main}>
+
+                {/* ── Stats Row ── */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 20, marginBottom: 28 }}>
+                    <div style={css.card}>
+                        <div style={{ color: 'var(--text-muted)', fontSize: 13, fontWeight: 600, textTransform: 'uppercase', marginBottom: 8 }}>Total Items</div>
+                        <div style={{ fontSize: 32, fontWeight: 800, color: 'var(--accent)' }}>{total.toLocaleString()}</div>
+                    </div>
+                    <div style={css.card}>
+                        <div style={{ color: 'var(--text-muted)', fontSize: 13, fontWeight: 600, textTransform: 'uppercase', marginBottom: 8 }}>Total Uploads</div>
+                        <div style={{ fontSize: 32, fontWeight: 800, color: '#16a34a' }}>{history.length.toLocaleString()}</div>
+                    </div>
+                </div>
 
                 {/* ── Tabs ── */}
                 <div style={{ display: 'flex', gap: 8, marginBottom: 24, borderBottom: '1px solid var(--border)' }}>
@@ -269,9 +296,9 @@ export default function App() {
                         <div style={css.card}>
                             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
                                 <div>
-                                    <h2 style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)' }}>Upload New CSV</h2>
+                                    <h2 style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)' }}>Batch Upload CSV</h2>
                                     <p style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 2 }}>
-                                        Recognized columns: <code style={{ color: 'var(--accent)' }}>Item Code, Item Description, Bulk, Loose</code>
+                                        Select one or more files to upload at once.
                                     </p>
                                 </div>
                             </div>
@@ -284,44 +311,49 @@ export default function App() {
                                 onDrop={onDrop}
                             >
                                 <input
-                                    ref={fileRef} type="file" accept=".csv" style={{ display: 'none' }}
-                                    onChange={(e) => pickFile(e.target.files[0])}
+                                    ref={fileRef} type="file" accept=".csv" multiple style={{ display: 'none' }}
+                                    onChange={(e) => pickFiles(e.target.files)}
                                 />
-                                {file ? (
-                                    <>
-                                        <div style={{ marginTop: 10, fontWeight: 600, color: 'var(--text-primary)' }}>{file.name}</div>
-                                        <div style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 4 }}>
-                                            {(file.size / 1024).toFixed(1)} KB · Click to change
-                                        </div>
-                                    </>
-                                ) : (
-                                    <>
-                                        <div style={{ fontSize: 32 }}>⬆</div>
-                                        <div style={{ fontWeight: 600, color: 'var(--text-primary)', marginTop: 10 }}>
-                                            Drag & drop your CSV here
-                                        </div>
-                                        <div style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 4 }}>
-                                            or click to browse
-                                        </div>
-                                    </>
-                                )}
+                                <div style={{ fontSize: 32, marginBottom: 8 }}>📤</div>
+                                <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>Click or drag CSV files here</div>
+                                <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>You can select multiple files</div>
                             </div>
 
-                            {file && (
-                                <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
-                                    <button style={css.btn('primary', uploading)} disabled={uploading} onClick={upload}>
-                                        {uploading ? ' Uploading…' : ' Process & Save'}
-                                    </button>
-                                    <button style={css.btn('secondary')} onClick={() => { setFile(null); setResult(null); setUploadErr(null) }}>✕ Cancel</button>
+                            {files.length > 0 && (
+                                <div style={{ marginTop: 20 }}>
+                                    <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 12 }}>Selected Files ({files.length}):</div>
+                                    <div style={{ display: 'flex', flexWrap: 'wrap' }}>
+                                        {files.map((f, i) => (
+                                            <div key={i} style={css.fileTag}>
+                                                📄 {f.name}
+                                                <span
+                                                    style={{ cursor: 'pointer', color: 'var(--error)', marginLeft: 4, fontWeight: 'bold' }}
+                                                    onClick={(e) => { e.stopPropagation(); removeFile(i); }}
+                                                >✕</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                    <div style={{ display: 'flex', gap: 10, marginTop: 12 }}>
+                                        <button style={css.btn('primary', uploading)} disabled={uploading} onClick={upload}>
+                                            {uploading ? ' Uploading…' : ` Upload ${files.length} Files`}
+                                        </button>
+                                        <button style={css.btn('secondary')} onClick={() => { setFiles([]); setResults([]); setUploadErr(null) }}>Clear All</button>
+                                    </div>
                                 </div>
                             )}
 
-                            {result && (
-                                <div style={{ marginTop: 16, padding: '16px 20px', background: 'var(--success-bg)', border: '1px solid rgba(34,197,94,0.25)', borderRadius: 'var(--radius-sm)' }}>
-                                    <div style={{ fontWeight: 700, color: 'var(--success)', marginBottom: 4 }}>{result.message}</div>
-                                    <div style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
-                                        Found: {result.totalRows} rows · {result.savedRows} saved successfully.
-                                    </div>
+                            {results.length > 0 && (
+                                <div style={{ marginTop: 20 }}>
+                                    {results.map((res, i) => (
+                                        <div key={i} style={{
+                                            padding: '8px 12px',
+                                            background: res.success ? 'var(--success-bg)' : 'var(--error-bg)',
+                                            borderRadius: 6, marginBottom: 6, fontSize: 13,
+                                            border: `1px solid ${res.success ? 'rgba(34,197,94,0.2)' : 'rgba(239,68,68,0.2)'}`
+                                        }}>
+                                            <strong>{res.fileName}</strong>: {res.message || (res.success ? 'Success' : 'Failed')}
+                                        </div>
+                                    ))}
                                 </div>
                             )}
 
