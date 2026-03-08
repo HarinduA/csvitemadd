@@ -37,6 +37,14 @@ public class ItemsController : ControllerBase
             return BadRequest(new { message = "Only CSV files are accepted." });
 
         var errors = new List<string>();
+
+        // Check if file with same name was already uploaded
+        var existingUpload = await _context.Uploads.FirstOrDefaultAsync(u => u.FileName == file.FileName);
+        if (existingUpload != null)
+        {
+            return BadRequest(new { message = $"A file named '{file.FileName}' has already been uploaded on {existingUpload.UploadDate.ToLocalTime():g}. Please rename the file if this is a different version." });
+        }
+
         var parsedDtos = new List<ItemCsvDto>();
 
         // ── 1. Create Upload Record ─────────────────────────────────────
@@ -131,6 +139,7 @@ public class ItemsController : ControllerBase
                     if (string.IsNullOrWhiteSpace(dto.ItemCode) || string.IsNullOrWhiteSpace(dto.LocaCode))
                     {
                         duplicateCount++;
+                        errors.Add("Skipped row with empty Item Code or Loca Code.");
                         continue;
                     }
 
@@ -138,31 +147,32 @@ public class ItemsController : ControllerBase
                         x.LocaCode.Equals(dto.LocaCode, StringComparison.OrdinalIgnoreCase) && 
                         x.ItemCode.Equals(dto.ItemCode, StringComparison.OrdinalIgnoreCase));
 
-                    if (existing != null)
+                    // Also check if we already added it in this current batch loop to avoid duplicates within same CSV
+                    var alreadyInBatch = newItems.FirstOrDefault(x => 
+                        x.LocaCode.Equals(dto.LocaCode, StringComparison.OrdinalIgnoreCase) && 
+                        x.ItemCode.Equals(dto.ItemCode, StringComparison.OrdinalIgnoreCase));
+
+                    if (existing != null || alreadyInBatch != null)
                     {
-                        // Update existing
-                        existing.Copcode = dto.Copcode ?? string.Empty;
-                        existing.Description = dto.Description;
-                        existing.Qty1 = dto.Qty1;
-                        existing.Qty2 = dto.Qty2;
-                        existing.UploadId = upload.Id;
+                        duplicateCount++;
+                        errors.Add($"Item '{dto.ItemCode}' already exists in location '{dto.LocaCode}'. Skipping.");
+                        continue;
                     }
-                    else
+
+                    // Add new
+                    newItems.Add(new Item
                     {
-                        // Add new
-                        newItems.Add(new Item
-                        {
-                            Copcode = dto.Copcode ?? string.Empty,
-                            LocaCode = dto.LocaCode,
-                            ItemCode = dto.ItemCode,
-                            Description = dto.Description,
-                            Qty1 = dto.Qty1,
-                            Qty2 = dto.Qty2,
-                            UploadId = upload.Id
-                        });
-                    }
+                        Copcode = dto.Copcode ?? string.Empty,
+                        LocaCode = dto.LocaCode,
+                        ItemCode = dto.ItemCode,
+                        Description = dto.Description,
+                        Qty1 = dto.Qty1,
+                        Qty2 = dto.Qty2,
+                        UploadId = upload.Id
+                    });
                     savedCount++;
                 }
+
 
                 if (newItems.Any())
                 {

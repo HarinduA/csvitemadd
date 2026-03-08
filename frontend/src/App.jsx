@@ -349,16 +349,50 @@ export default function App() {
                                 <div style={{ marginTop: 20 }}>
                                     {results.map((res, i) => (
                                         <div key={i} style={{
-                                            padding: '8px 12px',
+                                            padding: '14px 18px',
                                             background: res.success ? 'var(--success-bg)' : 'var(--error-bg)',
-                                            borderRadius: 6, marginBottom: 6, fontSize: 13,
-                                            border: `1px solid ${res.success ? 'rgba(34,197,94,0.2)' : 'rgba(239,68,68,0.2)'}`
+                                            borderRadius: 10, marginBottom: 16, fontSize: 13,
+                                            border: `1px solid ${res.success ? 'rgba(34,197,94,0.15)' : 'rgba(239,68,68,0.15)'}`,
+                                            boxShadow: '0 2px 8px rgba(0,0,0,0.03)'
                                         }}>
-                                            <strong>{res.fileName}</strong>: {res.message || (res.success ? 'Success' : 'Failed')}
+                                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                                                <div style={{ fontWeight: 700, fontSize: 14 }}>📄 {res.fileName}</div>
+                                                <div style={{ fontSize: 12, opacity: 0.8 }}>
+                                                    {res.savedRows} saved · {res.totalRows - res.savedRows} skipped
+                                                </div>
+                                            </div>
+                                            <div style={{ color: res.success ? 'var(--success)' : 'var(--error)', fontWeight: 600 }}>
+                                                {res.message || (res.success ? 'Upload complete' : 'Upload failed')}
+                                            </div>
+
+                                            {res.errors && res.errors.length > 0 && (
+                                                <div style={{
+                                                    marginTop: 10,
+                                                    maxHeight: 180,
+                                                    overflowY: 'auto',
+                                                    background: 'rgba(255,255,255,0.4)',
+                                                    borderRadius: 6,
+                                                    padding: '10px 12px',
+                                                    border: '1px solid rgba(0,0,0,0.05)'
+                                                }}>
+                                                    <div style={{ fontWeight: 700, color: 'var(--text-muted)', fontSize: 11, textTransform: 'uppercase', marginBottom: 6, letterSpacing: 0.5 }}>
+                                                        Skipped Items ({res.errors.length})
+                                                    </div>
+                                                    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                                                        {res.errors.map((err, idx) => (
+                                                            <div key={idx} style={{ fontSize: 12, color: 'var(--text-secondary)', display: 'flex', gap: 6 }}>
+                                                                <span style={{ color: 'var(--warning)', fontWeight: 800 }}>•</span>
+                                                                <span>{err}</span>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            )}
                                         </div>
                                     ))}
                                 </div>
                             )}
+
 
                             {uploadErr && (
                                 <div style={{ marginTop: 16, padding: '14px 18px', background: 'var(--error-bg)', border: '1px solid rgba(239,68,68,0.25)', borderRadius: 'var(--radius-sm)', color: 'var(--error)' }}>
