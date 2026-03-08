@@ -202,7 +202,8 @@ public class ItemsController : ControllerBase
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 50,
         [FromQuery] string? search = null,
-        [FromQuery] int? uploadId = null)
+        [FromQuery] int? uploadId = null,
+        [FromQuery] string? sortBy = null)
     {
         var query = _context.Items.AsQueryable();
 
@@ -220,12 +221,36 @@ public class ItemsController : ControllerBase
                 (x.Description != null && x.Description.Contains(search)));
         }
 
+        switch (sortBy?.ToLower())
+        {
+            case "bulk":
+                query = query.OrderByDescending(x => x.Qty1);
+                break;
+            case "loose":
+                query = query.OrderByDescending(x => x.Qty2);
+                break;
+            case "total":
+                query = query.OrderByDescending(x => x.Qty1 + x.Qty2);
+                break;
+            default:
+                query = query.OrderBy(x => x.LocaCode).ThenBy(x => x.ItemCode);
+                break;
+        }
+
         var total = await query.CountAsync();
         var items = await query
-            .OrderBy(x => x.LocaCode)
-            .ThenBy(x => x.ItemCode)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
+            .Select(x => new {
+                x.Copcode,
+                x.LocaCode,
+                x.ItemCode,
+                x.Description,
+                x.Qty1,
+                x.Qty2,
+                TotalQty = x.Qty1 + x.Qty2,
+                x.UploadId
+            })
             .ToListAsync();
 
         return Ok(new
@@ -236,6 +261,7 @@ public class ItemsController : ControllerBase
             items
         });
     }
+
 
     /// <summary>
     /// Get upload history.

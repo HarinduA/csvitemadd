@@ -44,6 +44,7 @@ export default function App() {
     const [loadingItems, setLoadingItems] = useState(false)
     const [tableErr, setTableErr] = useState(null)
     const [clearing, setClearing] = useState(false)
+    const [sortBy, setSortBy] = useState('')
     const PAGE_SIZE = 50
 
     // history state
@@ -68,13 +69,14 @@ export default function App() {
     }, [])
 
     // ── fetch items ──────────────────────────────────────────────────────────────
-    const fetchItems = useCallback(async (p = 1, s = search, uId = selectedUpload?.id) => {
+    const fetchItems = useCallback(async (p = 1, s = search, uId = selectedUpload?.id, sb = sortBy) => {
         setLoadingItems(true)
         setTableErr(null)
         try {
             const params = new URLSearchParams({ page: p, pageSize: PAGE_SIZE })
             if (s) params.set('search', s)
             if (uId) params.set('uploadId', uId)
+            if (sb) params.set('sortBy', sb)
             const res = await fetch(`${API}?${params}`)
             if (!res.ok) throw new Error(`HTTP ${res.status}`)
             const data = await res.json()
@@ -86,7 +88,8 @@ export default function App() {
         } finally {
             setLoadingItems(false)
         }
-    }, [search, selectedUpload])
+    }, [search, selectedUpload, sortBy])
+
 
     // Auto-load items and history on mount
     useEffect(() => {
@@ -380,19 +383,30 @@ export default function App() {
                                 </h2>
                                 <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
                                     <form onSubmit={handleSearch} style={{ display: 'flex', gap: 8 }}>
+                                        <select
+                                            style={{ ...css.input, flex: 'none', width: 'auto' }}
+                                            value={sortBy}
+                                            onChange={(e) => {
+                                                const s = e.target.value
+                                                setSortBy(s)
+                                                fetchItems(1, search, selectedUpload?.id, s)
+                                            }}
+                                        >
+                                            <option value="">Sort: Default</option>
+                                            <option value="bulk">Sort: Bulk (High → Low)</option>
+                                            <option value="loose">Sort: Loose (High → Low)</option>
+                                        </select>
                                         <input
                                             style={css.input}
                                             placeholder="Search items…"
                                             value={searchInput}
                                             onChange={(e) => setSearchInput(e.target.value)}
                                         />
-                                        <button type="submit" style={css.btn('secondary')}>🔍</button>
+                                        <button type="submit" style={css.btn('secondary')}>🔍 Search</button>
                                     </form>
-                                    <button style={css.btn('danger', clearing)} disabled={clearing} onClick={clearAll}>
-                                        {clearing ? 'Clearing…' : ' Reset Database'}
-                                    </button>
                                 </div>
                             </div>
+
 
                             {tableErr && (
                                 <div style={{ padding: '12px 16px', background: 'var(--error-bg)', border: '1px solid rgba(239,68,68,0.25)', borderRadius: 'var(--radius-sm)', color: 'var(--error)', marginBottom: 16 }}>
@@ -425,6 +439,7 @@ export default function App() {
                                     </tbody>
                                 </table>
                             </div>
+
 
                             {totalPages > 1 && (
                                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 20 }}>
