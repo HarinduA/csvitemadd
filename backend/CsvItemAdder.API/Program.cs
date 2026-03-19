@@ -48,3 +48,6 @@ app.UseAuthorization();
 app.MapControllers();
 
 app.Run("http://localhost:5005");
+
+
+// http://localhost:5005/swagger/index.html
